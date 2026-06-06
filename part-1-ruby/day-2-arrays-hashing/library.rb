@@ -11,8 +11,13 @@ def show_english_menu
   puts "7. List all books"
 end
 
-def add_book(books,hash)
-  books.push(hash)
+def add_book(books,book_hash)
+  if books.any? { |book| book[:title].downcase == book_hash[:title].downcase }
+    return "Book already exists."
+  else
+    books.push( book_hash)
+    return "Book added successfully..."
+  end
 end
 
 def display_books(books,limit) # For both option 2(display first 3) & 7(display all books)  
