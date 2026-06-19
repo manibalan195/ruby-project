@@ -1,2 +1,7 @@
 title,author,year,type,genre,url,duration_minutes
-mani,afsv,123,physical,"","",""
+Ruby,Mani,2026,physical,"","",""
+Python,Bala,2000,physical,"","",""
+Java,Manibalan,2001,digital,"",java.com,""
+c-programming,Dennis Ritchie,1972,digital,"",c.com,""
+c++,Gowtham,1990,audio,Programming,"",120
+React,Nimal,2005,audio,Frontend ,"",200

@@ -8,6 +8,7 @@ require_relative "exceptions/book_not_found_error"
 
 BACKUP_FILE = "data/books_backup.csv"
 SAVE_FILE = "data/books.csv"
+FileUtils.mkdir_p("data")
 
 def save_library(library)
   CSV.open(SAVE_FILE,"w") do |csv|
@@ -42,11 +43,7 @@ def load_library(library)
         row["duration_minutes"].to_i
       )
     else
-      library.add(
-        row["title"],
-        row["author"],
-        row["year"].to_i
-      )
+      library.add(row["title"],row["author"],row["year"].to_i)
     end
   end
 
@@ -60,6 +57,28 @@ def create_backup
   end
 end
 
+def prompt_required(message)
+  print message
+  value = gets.to_s.chomp
+  raise InvalidInputError, "Input cannot be blank" if value.strip.empty?
+  value
+end
+
+def prompt_year(message)
+  print message
+  year_input = gets.chomp
+  raise InvalidInputError,
+        "Year must be a number" unless year_input.match?(/^\d+$/)
+  year_input.to_i
+end
+
+def prompt_duration(message)
+  print message
+  duration_input = gets.chomp
+  raise InvalidInputError,
+        "Duration must be a positive integer" unless duration_input.match?(/^\d+$/)
+  duration_input.to_i
+end
 
 library = Library.new
 
@@ -92,19 +111,9 @@ begin
     case choice
 
     when 1
-      print "Enter title: "
-      title = gets.chomp
-
-      print "Enter author: "
-      author = gets.chomp
-
-      print "Enter year: "
-      year_input = gets.chomp
-
-      raise InvalidInputError, "Year must be a positive  number" unless year_input.match?(/^\d+$/)
-
-      year = year_input.to_i
-
+      title = prompt_required("Enter title: ")
+      author = prompt_required("Enter author: ")
+      year = prompt_year("Enter year: ")
       library.add(title, author, year)
       puts "Book added!"
 
@@ -115,35 +124,24 @@ begin
       library.list
 
     when 4
-      print "Enter title to search: "
-      query = gets.chomp
-
+      query = prompt_required("Enter title to search: ")
       book = library.find_by_title(query)
-
       raise BookNotFoundError.new(query) unless book
-
       puts "\nBook Found:"
       book.display
 
     when 5
-      print "Enter author name to search: "
-      query = gets.chomp
-
+      query = prompt_required("Enter author name to search: ")
       books = library.find_by_author(query)
-
-      if books.empty?
-        raise BookNotFoundError.new(query)
-      else
-        puts "\nBooks Found:"
-        books.each do |book|
-          book.display
-        end
+      raise BookNotFoundError.new(query) if books.empty?
+      
+      puts "\nBooks Found:"
+      books.each do |book|
+        book.display
       end
 
     when 6
-      print "Enter title to delete: "
-      title = gets.chomp
-
+      title = prompt_required("Enter title to delete: ")
       library.delete(title)
 
     when 7
@@ -158,80 +156,33 @@ begin
       end
 
     when 9
-      print "Enter title: "
-      title = gets.chomp
-
-      print "Enter author: "
-      author = gets.chomp
-
-      print "Enter year: "
-      year_input = gets.chomp
-
-      raise InvalidInputError, "Year must be a number" unless year_input.match?(/^\d+$/)
-
-      year = year_input.to_i
-
-      print "Enter URL: "
-      url = gets.chomp
-
+      title = prompt_required("Enter title: ")
+      author = prompt_required("Enter author: ")
+      year = prompt_year("Enter year: ")
+      url = prompt_required("Enter URL: ")
       library.add_digital_book(title, author, year, url)
     
     when 10
-      print "Enter title: "
-      title = gets.chomp
-
-      print "Enter author: "
-      author = gets.chomp
-
-      print "Enter year: "
-      year_input = gets.chomp
-
-      raise InvalidInputError,
-            "Year must be a number" unless year_input.match?(/^\d+$/)
-
-      year = year_input.to_i
-
-      print "Enter genre: "
-      genre = gets.chomp
-
-      print "Enter duration in minutes: "
-      duration_input = gets.chomp
-
-      raise InvalidInputError,
-            "Duration must be a positive integer" unless duration_input.match?(/^\d+$/)
-
-      duration = duration_input.to_i
-
-      library.add_audio_book(
-        title,
-        author,
-        year,
-        genre,
-        duration
-      )
+      title = prompt_required("Enter title: ")
+      author = prompt_required("Enter author: ")
+      year = prompt_year("Enter year: ")
+      genre = prompt_required("Enter genre: ")
+      duration = prompt_duration("Enter duration in minutes: ")
+      library.add_audio_book(title,author,year,genre,duration)
 
     when 11
-
       result = library.stats
-
       puts "\n--- Library Statistics ---"
       puts "Total Books: #{result[:total]}"
       puts "Books By Genre: #{result[:by_genre]}"
       puts "Average Year: #{result[:average_year]}"
 
     when 12
-
-      print "Enter book title: "
-      query = gets.chomp
-
-      result = library.to_csv_row(query)
-
+      query = prompt_required("Enter Book title: ")
       puts "\nCSV Export:"
-      puts result
+      puts library.to_csv_row(query)
 
     when 13
-      create_backup
-      save_library(library)
       puts "Exiting..."
       break
 
@@ -252,4 +203,3 @@ rescue Interrupt
 ensure
   puts "Session ended."
 end
-
