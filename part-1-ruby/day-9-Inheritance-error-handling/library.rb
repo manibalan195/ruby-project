@@ -1,6 +1,9 @@
 require_relative "modules.rb"
+require "CSV"
+require "FileUtils"
 
-# ===== CUSTOM EXCEPTIONS =====
+BACKUP_FILE = "books_backup.csv"
+SAVE_FILE = "books.csv"
 
 class BookNotFoundError < StandardError
   def initialize(title)
@@ -24,11 +27,11 @@ class Book
   end
 
   def <=>(other)
+    return nil unless other.is_a?(Book)
     @year <=> other.year
   end
 end
 
-# ===== DIGITAL BOOK SUBCLASS =====
 
 class DigitalBook < Book
   attr_accessor :url
@@ -42,6 +45,40 @@ class DigitalBook < Book
     super
     puts "URL : #{@url}"
     puts "-" * 30
+  end
+end
+
+class AudioBook < Book
+  attr_reader :genre, :duration_minutes
+
+  def initialize(title, author, year, genre, duration_minutes)
+    super(title, author, year)
+
+    raise InvalidInputError,
+          "Duration must be a positive integer" if duration_minutes <= 0
+
+    @genre = genre
+    @duration_minutes = duration_minutes
+  end
+
+  def display
+    puts "Title : #{title}"
+    puts "Author : #{author}"
+    puts "Year : #{year}"
+    puts "Genre : #{@genre}"
+
+    hours = @duration_minutes / 60
+    minutes = @duration_minutes % 60
+
+    puts "Duration : #{hours}h #{minutes}m"
+    puts "-" * 30
+  end
+
+  def to_s
+    hours = @duration_minutes / 60
+    minutes = @duration_minutes % 60
+
+    "#{title} | #{author} | (#{year}) | #{genre} | #{hours}h #{minutes}m"
   end
 end
 
@@ -59,13 +96,28 @@ class Library
     puts "Book added!"
   end
 
-  # ===== ADD DIGITAL BOOK =====
+  def all_books 
+    @books
+  end
 
   def add_digital_book(title, author, year, url)
     @books << DigitalBook.new(title, author, year, url)
     puts "Digital Book added!"
   end
 
+  def add_audio_book(title, author, year, genre, duration_minutes)
+    @books << AudioBook.new(
+      title,
+      author,
+      year,
+      genre,
+      duration_minutes
+    )
+
+    puts "Audiobook added!"
+  end
+
+  
   def list(limit: nil)
     collection = limit ? @books.first(limit) : @books
 
@@ -101,9 +153,65 @@ class Library
   end
 end
 
+
+def save_library(library)
+  CSV.open(SAVE_FILE,"w") do |csv|
+    csv << ["title", "author", "year", "type", "genre","url", "duration_minutes"]
+    library.all_books.each do |book|
+      if(book.is_a?(DigitalBook))
+        csv << [book.title, book.author, book.year, "digital", "",book.url, ""]
+      elsif book.is_a?(AudioBook)
+        csv << [book.title, book.author, book.year, "audio", book.genre,"", book.duration_minutes]
+      else
+        csv << [book.title, book.author, book.year, "physical", "", "", ""]
+      end
+    end
+  end
+  puts "Library Saved !"
+end
+
+def load_library(library)
+
+  return unless File.exist?(SAVE_FILE)
+
+  CSV.foreach(SAVE_FILE, headers: true) do |row|
+    case row["type"]
+    when "digital"
+      library.add_digital_book(row["title"], row["author"], row["year"].to_i, row["url"] )
+    when "audio"
+      library.add_audio_book(
+        row["title"],
+        row["author"],
+        row["year"].to_i,
+        row["genre"],
+        row["duration_minutes"].to_i
+      )
+    else
+      library.add(
+        row["title"],
+        row["author"],
+        row["year"].to_i
+      )
+    end
+  end
+
+  puts "Loaded #{library.size} books from file."
+end
+
+def create_backup
+  if File.exist?(SAVE_FILE)
+    FileUtils.cp( SAVE_FILE, BACKUP_FILE)
+    puts "Backup created: books_backup.csv"
+  end
+end
+
 library = Library.new
 
-# ===== BEGIN / RESCUE / ENSURE =====
+load_library(library)
+at_exit do
+  create_backup
+  save_library(library)
+end
 
 begin
   loop do
@@ -117,7 +225,8 @@ begin
     puts "7. Total Books"
     puts "8. Sort Books"
     puts "9. Add Digital Book"
-    puts "10. Exit"
+    puts "10. Add Audio Book"
+    puts "11. Exit"
 
     print "Enter your choice: "
     choice = gets.chomp.to_i
@@ -207,8 +316,42 @@ begin
       url = gets.chomp
 
       library.add_digital_book(title, author, year, url)
+    
+      when 10
+        print "Enter title: "
+        title = gets.chomp
 
-    when 10
+        print "Enter author: "
+        author = gets.chomp
+
+        print "Enter year: "
+        year_input = gets.chomp
+
+        raise InvalidInputError,
+              "Year must be a number" unless year_input.match?(/^\d+$/)
+
+        year = year_input.to_i
+
+        print "Enter genre: "
+        genre = gets.chomp
+
+        print "Enter duration in minutes: "
+        duration_input = gets.chomp
+
+        raise InvalidInputError,
+              "Duration must be a positive integer" unless duration_input.match?(/^\d+$/)
+
+        duration = duration_input.to_i
+
+        library.add_audio_book(
+          title,
+          author,
+          year,
+          genre,
+          duration
+        )
+
+    when 11
       puts "Exiting..."
       break
 
@@ -229,3 +372,4 @@ rescue Interrupt
 ensure
   puts "Session ended."
 end
+

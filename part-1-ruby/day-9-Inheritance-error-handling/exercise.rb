@@ -66,7 +66,7 @@ class Library
 
   # ===== Add Audiobook =====
 
-  def add_audiobook(title, author, year, genre, duration_minutes)
+  def add_audio_book(title, author, year, genre, duration_minutes)
     @books << AudioBook.new(
       title,
       author,
